@@ -32,13 +32,20 @@ if [ ! -f "$wordlist_dir/wordlist.txt" ]; then
   grep -x '.\{8,63\}' "$wordlist_dir/rockyou.txt" > "$wordlist_dir/wordlist.txt"
 fi
 # enable monitor mood
-ifconfig | cut -d ' ' -f1 | cut -s -d ':' -f1
-echo Select Interface:
-read interface
-#interface=$(ifconfig | grep wl | cut -d ":" -f1)
-airmon-ng start $interface
-airmon-ng check kill
-echo Enter Monitor Mode Interface:
+echo Available Interfaces
+PS3="Input a number: "
+adapter="$(ifconfig | grep wl | cut -d ':' -f1 )"
+select interface in $adapter; do
+  airmon-ng start $interface;
+  break;
+done
+
+
+#ifconfig | grep wl | cut -d ':' -f1
+#echo Select Interface:
+#read interface
+#airmon-ng start $interface
+#echo Enter Monitor Mode Interface:
 #read mon
 mon=$(ifconfig | grep "$interface" | cut -d ":" -f1)
 # selecting target
